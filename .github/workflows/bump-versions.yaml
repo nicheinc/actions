@@ -9,6 +9,7 @@ name: Bump chart and/or app versions
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 on:
   workflow_call:
     inputs:
