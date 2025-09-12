@@ -144,7 +144,7 @@ jobs:
 
       # AWS Setup
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         if: |
           (github.event_name == 'push' &&
            inputs.chartchange == 'true') ||
