@@ -147,7 +147,7 @@ jobs:
 
       # On release, build service images and push to ECR.
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v5
         if: |
           github.event_name == 'push' &&
           steps.check-version-change.outputs.appchange == 'true'
