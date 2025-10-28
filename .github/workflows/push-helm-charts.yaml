@@ -189,7 +189,13 @@ jobs:
           tag: "helm-chart-${{ inputs.chartversion }}"
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          body: appversion ${{ inputs.appversion }}
+          body: |
+            appversion ${{ inputs.appversion }}
+
+            ${{ github.event.pull_request.number
+              && format('[PR #{0}]({1}/{2}/pull/{0})', github.event.pull_request.number, github.server_url, github.repository)
+              || 'This release is not associated with any pull request.'
+            }}
 
       # Notify in Slack
       - name: Post Helm Chart Prerelease to Slack
