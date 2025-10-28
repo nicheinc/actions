@@ -196,6 +196,8 @@ jobs:
           tag: "helm-chart-${{ inputs.chartversion }}"
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE: The deploy-stats service parses PR links from chart release
+          # bodies. Do not modify the "[PR] ${0}]" format!
           body: |
             appversion ${{ inputs.appversion }}
 
