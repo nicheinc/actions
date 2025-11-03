@@ -180,7 +180,7 @@ jobs:
 
       - name: Get PR Metadata
         uses: 8BitJonny/gh-get-current-pr@4056877062a1f3b624d5d4c2bedefa9cf51435c9 # v4.0.0
-        id: pr
+        id: get-pr
         if: |
           github.event_name == 'push' &&
           inputs.chartchange == 'true'
@@ -201,8 +201,8 @@ jobs:
           body: |
             appversion ${{ inputs.appversion }}
 
-            ${{ steps.pr.outputs.pr_found == 'true'
-              && format('[PR #{0}]({1})', steps.pr.outputs.number, steps.pr.outputs.pr_url)
+            ${{ steps.get-pr.outputs.pr_found == 'true'
+              && format('[PR #{0}]({1})', steps.get-pr.outputs.number, steps.get-pr.outputs.pr_url)
               || 'This release is not associated with any pull request.'
             }}
 
