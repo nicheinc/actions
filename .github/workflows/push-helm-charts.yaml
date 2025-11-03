@@ -137,7 +137,7 @@ jobs:
       - name: Mark as Prerelease
         id: mark-prerelease
         if: |
-          github.event_name == 'push' && 
+          github.event_name == 'push' &&
           inputs.chartchange == 'true'
         run: |
           sed -i '/^version/ s/$/-beta/' charts/*/Chart.yaml
@@ -178,6 +178,13 @@ jobs:
             echo "Successfully pushed chart $CHART_TAR_GZ to '$REGISTRY_URL'"
           done
 
+      - name: Get PR Metadata
+        uses: 8BitJonny/gh-get-current-pr@4056877062a1f3b624d5d4c2bedefa9cf51435c9 # v4.0.0
+        id: get-pr
+        if: |
+          github.event_name == 'push' &&
+          inputs.chartchange == 'true'
+
       # Cut a prerelease for the helm chart if it was a push
       - name: Create Prerelease for Helm Charts
         id: create-helm-prerelease
@@ -189,7 +196,15 @@ jobs:
           tag: "helm-chart-${{ inputs.chartversion }}"
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          body: appversion ${{ inputs.appversion }}
+          # NOTE: The deploy-stats service parses PR links from chart release
+          # bodies. Do not modify the "[PR] ${0}]" format!
+          body: |
+            appversion ${{ inputs.appversion }}
+
+            ${{ steps.get-pr.outputs.pr_found == 'true'
+              && format('[PR #{0}]({1})', steps.get-pr.outputs.number, steps.get-pr.outputs.pr_url)
+              || 'This release is not associated with any pull request.'
+            }}
 
       # Notify in Slack
       - name: Post Helm Chart Prerelease to Slack
