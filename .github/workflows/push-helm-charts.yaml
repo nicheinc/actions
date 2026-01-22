@@ -15,6 +15,25 @@ on:
           The current version of the app
         required: true
         type: string
+      cd-apps:
+        description: >
+          A JSON array containing the names of all apps to be deployed to stage
+          and production via CD. If present, this information will be written to
+          the Helm chart release description, marking the release as
+          CD-eligible. If this input is provided, cd-workflow must also be
+          provided.
+
+          Example: '["service", "service-updater"]'
+        required: false
+        type: string
+      cd-workflow:
+        description: >
+          The name of the CD workflow in the calling repository. If present,
+          this information will be written to the Helm chart release
+          description, marking the release as CD-eligible. If this input is
+          provided, cd-apps must also be provided.
+        required: false
+        type: string
       chartchange:
         description: >
           'true' if CHARTVERSION in the version.env file changed, 'false' otherwise
@@ -204,6 +223,14 @@ jobs:
             ${{ steps.get-pr.outputs.pr_found == 'true'
               && format('[PR #{0}]({1})', steps.get-pr.outputs.number, steps.get-pr.outputs.pr_url)
               || 'This release is not associated with any pull request.'
+            }}
+
+            ${{ inputs.cd-apps
+              && format('Apps: {0}', join(fromJson(inputs.cd-apps), ', '))
+            }}
+
+            ${{ inputs.cd-workflow
+              && format('To be deployed automatically via `{0}`', inputs.cd-workflow)
             }}
 
       # Notify in Slack
