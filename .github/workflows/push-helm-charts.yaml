@@ -10,28 +10,28 @@ on:
           'true' if APPVERSION in the version.env file changed, 'false' otherwise
         required: true
         type: string
+      apps:
+        description: >
+          A JSON array containing the names of all apps the repo ships to stage.
+          If present, this information will be written to the Helm chart release
+          description.
+
+          Example: '["service", "service-updater"]'
+        required: false
+        type: string
       appversion:
         description: >
           The current version of the app
         required: true
-        type: string
-      cd-apps:
-        description: >
-          A JSON array containing the names of all apps to be deployed to stage
-          and production via CD. If present, this information will be written to
-          the Helm chart release description, marking the release as
-          CD-eligible. If this input is provided, cd-workflow must also be
-          provided.
-
-          Example: '["service", "service-updater"]'
-        required: false
         type: string
       cd-workflow:
         description: >
           The name of the CD workflow in the calling repository. If present,
           this information will be written to the Helm chart release
           description, marking the release as CD-eligible. If this input is
-          provided, cd-apps must also be provided.
+          provided, the apps input must also be provided, indicating the set of
+          apps whose deployment to stage will trigger final testing and
+          deployment to production.
         required: false
         type: string
       chartchange:
@@ -215,9 +215,9 @@ jobs:
           tag: "helm-chart-${{ inputs.chartversion }}"
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          # NOTE: The deploy-stats service parses PR links from chart release
-          # bodies. Do not modify the "[PR] ${0}]" format!
           body: |
+            <!-- The following metadata will be parsed by automation - do not modify! -->
+
             appversion ${{ inputs.appversion }}
 
             ${{ steps.get-pr.outputs.pr_found == 'true'
@@ -225,8 +225,8 @@ jobs:
               || 'This release is not associated with any pull request.'
             }}
 
-            ${{ inputs.cd-apps
-              && format('Apps: {0}', join(fromJson(inputs.cd-apps), ', '))
+            ${{ inputs.apps
+              && format('Apps: {0}', join(fromJson(inputs.apps), ', '))
             }}
 
             ${{ inputs.cd-workflow
