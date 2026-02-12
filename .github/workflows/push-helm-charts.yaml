@@ -7,8 +7,10 @@ on:
     inputs:
       appchange:
         description: >
+          Deprecated: This input is unused.
+
           'true' if APPVERSION in the version.env file changed, 'false' otherwise
-        required: true
+        required: false
         type: string
       apps:
         description: >
