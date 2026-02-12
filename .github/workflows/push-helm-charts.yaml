@@ -24,7 +24,7 @@ on:
       appversion:
         description: >
           The current version of the app
-        required: true
+        required: false # Required for push events
         type: string
       cd-workflow:
         description: >
@@ -39,12 +39,12 @@ on:
       chartchange:
         description: >
           'true' if CHARTVERSION in the version.env file changed, 'false' otherwise
-        required: true
+        required: false # Required for push events
         type: string
       chartversion:
         description: >
           The current version of the Helm chart(s)
-        required: true
+        required: false # Required for push events
         type: string
       protect-dev:
         description: >
