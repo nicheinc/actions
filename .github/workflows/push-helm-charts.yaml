@@ -93,6 +93,23 @@ jobs:
       github.event_name == 'push' || 
       github.event_name == 'release'
     steps:
+      - name: Validate required inputs for push events
+        if: github.event_name == 'push'
+        run: |
+          appversion="${{ inputs.appversion }}"
+          echo "appversion=$appversion"
+
+          chartchange="${{ inputs.chartchange }}"
+          echo "chartchange=$chartchange"
+
+          chartversion="${{ inputs.chartversion }}"
+          echo "chartversion=$chartversion"
+
+          if [[ -z "$appversion" || -z "$chartchange" || -z "$chartversion" ]]; then
+            echo "::error::appversion, chartchange, and chartversion are required for push events"
+            exit 1
+          fi
+
       # Checkout as github-actions for normal workflow
       - uses: actions/checkout@v3
         if: |
