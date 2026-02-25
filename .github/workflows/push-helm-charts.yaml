@@ -26,16 +26,6 @@ on:
           The current version of the app
         required: false # Required for push events
         type: string
-      cd-workflow:
-        description: >
-          The name of the CD workflow in the calling repository. If present,
-          this information will be written to the Helm chart release
-          description, marking the release as CD-eligible. If this input is
-          provided, the apps input must also be provided, indicating the set of
-          apps whose deployment to stage will trigger final testing and
-          deployment to production.
-        required: false
-        type: string
       chartchange:
         description: >
           'true' if CHARTVERSION in the version.env file changed, 'false' otherwise
@@ -246,10 +236,6 @@ jobs:
 
             ${{ inputs.apps
               && format('Apps: {0}', join(fromJson(inputs.apps), ', '))
-            }}
-
-            ${{ inputs.cd-workflow
-              && format('To be deployed automatically via `{0}`', inputs.cd-workflow)
             }}
 
       # Notify in Slack
