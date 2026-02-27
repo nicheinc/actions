@@ -7,23 +7,34 @@ on:
     inputs:
       appchange:
         description: >
+          Deprecated: This input is unused.
+
           'true' if APPVERSION in the version.env file changed, 'false' otherwise
-        required: true
+        required: false
+        type: string
+      apps:
+        description: >
+          A JSON array containing the names of all apps the repo ships to stage.
+          If present, this information will be written to the Helm chart release
+          description.
+
+          Example: '["service", "service-updater"]'
+        required: false
         type: string
       appversion:
         description: >
           The current version of the app
-        required: true
+        required: false # Required for push events
         type: string
       chartchange:
         description: >
           'true' if CHARTVERSION in the version.env file changed, 'false' otherwise
-        required: true
+        required: false # Required for push events
         type: string
       chartversion:
         description: >
           The current version of the Helm chart(s)
-        required: true
+        required: false # Required for push events
         type: string
       protect-dev:
         description: >
@@ -72,6 +83,23 @@ jobs:
       github.event_name == 'push' || 
       github.event_name == 'release'
     steps:
+      - name: Validate required inputs for push events
+        if: github.event_name == 'push'
+        run: |
+          appversion="${{ inputs.appversion }}"
+          echo "appversion=$appversion"
+
+          chartchange="${{ inputs.chartchange }}"
+          echo "chartchange=$chartchange"
+
+          chartversion="${{ inputs.chartversion }}"
+          echo "chartversion=$chartversion"
+
+          if [[ -z "$appversion" || -z "$chartchange" || -z "$chartversion" ]]; then
+            echo "::error::appversion, chartchange, and chartversion are required for push events"
+            exit 1
+          fi
+
       # Checkout as github-actions for normal workflow
       - uses: actions/checkout@v3
         if: |
@@ -196,14 +224,18 @@ jobs:
           tag: "helm-chart-${{ inputs.chartversion }}"
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          # NOTE: The deploy-stats service parses PR links from chart release
-          # bodies. Do not modify the "[PR] ${0}]" format!
           body: |
+            <!-- The following metadata will be parsed by automation - do not modify! -->
+
             appversion ${{ inputs.appversion }}
 
             ${{ steps.get-pr.outputs.pr_found == 'true'
               && format('[PR #{0}]({1})', steps.get-pr.outputs.number, steps.get-pr.outputs.pr_url)
               || 'This release is not associated with any pull request.'
+            }}
+
+            ${{ inputs.apps
+              && format('Apps: {0}', join(fromJson(inputs.apps), ', '))
             }}
 
       # Notify in Slack
