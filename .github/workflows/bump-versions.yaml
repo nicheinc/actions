@@ -42,12 +42,23 @@ jobs:
         uses: 8BitJonny/gh-get-current-pr@4056877062a1f3b624d5d4c2bedefa9cf51435c9 # v4.0.0
         id: get-pr
 
+      - name: Check if version.env already has changes
+        id: changed-version-env
+        uses: tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
+        with:
+          files: 'version.env'
+
       - name: Parse version labels from PR
         id: parse-labels
         env:
-          PR_FOUND: ${{ steps.get-pr.outputs.pr_found }}                                                                                                                                                                                                                                                    
-          PR_JSON: ${{ steps.get-pr.outputs.pr }}             
+          PR_FOUND: ${{ steps.get-pr.outputs.pr_found }}
+          PR_JSON: ${{ steps.get-pr.outputs.pr }}
         run: |
+          if [ "${{ steps.changed-version-env.outputs.any_changed }}" = "true" ]; then
+            echo "::error::version.env was manually updated in the PR — skipping automated bump"
+            exit 1
+          fi
+
           if [ "$PR_FOUND" != "true" ]; then
             echo "No PR found for this push"
             echo "labelsFound=false" >> $GITHUB_OUTPUT
