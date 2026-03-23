@@ -163,7 +163,7 @@ jobs:
   resolveVersionRequest:
     name: Resolve version request
     runs-on: ubuntu-slim
-    needs: [parseVersionLabels, parseVersionChangeRequest] # implicit enforces event_name == 'push'
+    needs: [parseVersionLabels, parseVersionChangeRequest] # implicitly enforces event_name == 'push'
     outputs:
       requestPattern: ${{ steps.resolve.outputs.requestPattern }}
       validRequest: ${{ steps.resolve.outputs.validRequest }}
