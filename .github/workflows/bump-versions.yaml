@@ -31,7 +31,7 @@ jobs:
   # Parse PR labels to determine version bump type
   parseVersionLabels:
     name: Parse version bump labels
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     if: github.event_name == 'push'
     outputs:
       labelsFound: ${{ steps.parse-labels.outputs.labelsFound }}
@@ -110,7 +110,7 @@ jobs:
   # Increment the APP and CHART versions based on commit message starting with update-versions
   parseVersionChangeRequest:
     name: Parse version changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     if: github.event_name == 'push'
     outputs:
       requestPattern: ${{ steps.validate-commit.outputs.requestPattern }}
@@ -162,7 +162,7 @@ jobs:
   # Pick label-based outputs if available, otherwise fall back to commit message parsing
   resolveVersionRequest:
     name: Resolve version request
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     needs: [parseVersionLabels, parseVersionChangeRequest] # implicit enforces event_name == 'push'
     outputs:
       requestPattern: ${{ steps.resolve.outputs.requestPattern }}
@@ -193,7 +193,7 @@ jobs:
 
   changeVersions:
     name: Update versions
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     needs: resolveVersionRequest
     if: |
       (github.event_name == 'push' &&
