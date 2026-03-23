@@ -174,7 +174,6 @@ jobs:
     name: Resolve version request
     runs-on: ubuntu-latest
     needs: [parseVersionLabels, parseVersionChangeRequest]
-    if: always() && !failure() && !cancelled()
     outputs:
       requestPattern: ${{ steps.resolve.outputs.requestPattern }}
       validRequest: ${{ steps.resolve.outputs.validRequest }}
