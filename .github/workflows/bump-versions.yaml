@@ -22,64 +22,96 @@ on:
     outputs:
       versions-changed-by-ci:
         description: "If the commit message was valid and the versions will change; 'true' or 'false'"
-        value: ${{ jobs.parseVersionChangeRequest.outputs.validRequest }}
+        value: ${{ jobs.resolveVersionRequest.outputs.validRequest }}
     secrets:
       PUSH_CHARTS_TOKEN:
         required: false
 
 jobs:
-  #label PR as being compatible with the `update-versions` command
-  labelPR:
-    name: Set merge-and-release-extension-compatible label
-    runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'pull_request'
-      && (
-        github.event.action == 'opened'
-        || github.event.action == 'synchronize'
-        || github.event.action == 'ready_for_review'
-      )
+  # Parse PR labels to determine version bump type
+  parseVersionLabels:
+    name: Parse version bump labels
+    runs-on: ubuntu-slim
+    if: github.event_name == 'push'
+    outputs:
+      labelsFound: ${{ steps.parse-labels.outputs.labelsFound }}
+      requestPattern: ${{ steps.parse-labels.outputs.requestPattern }}
+      validRequest: ${{ steps.parse-labels.outputs.validRequest }}
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-    
-      - name: Check if version.env already has changes
-        id: changed-version-env
-        if: github.event_name != 'release'
-        uses: tj-actions/changed-files@467e54813892b0cf302b0bba54d233c861b97f1a
-        with:
-          files: 'version.env'
+      - name: Get PR for this push
+        uses: 8BitJonny/gh-get-current-pr@4056877062a1f3b624d5d4c2bedefa9cf51435c9 # v4.0.0
+        id: get-pr
 
-      - name: Add label
-        # Run only if label does not yet exist and version.env has not been changed
-        if: |
-          steps.changed-version-env.outputs.any_changed == 'false'
-          && !contains( github.event.pull_request.labels.*.name, 'merge-and-release-extension-compatible')
-        uses: actions-ecosystem/action-add-labels@v1
-        with:
-          labels: merge-and-release-extension-compatible
-
-      - name: Remove label
-        # Run only if label already exists and version.env has been changed
-        if: |
-          steps.changed-version-env.outputs.any_changed == 'true'
-          && contains( github.event.pull_request.labels.*.name, 'merge-and-release-extension-compatible')
-        uses: actions-ecosystem/action-remove-labels@v1
-        with:
-          labels: merge-and-release-extension-compatible
-
-      - name: Output debug logs
+      - name: Parse version labels from PR
+        id: parse-labels
+        env:
+          PR_FOUND: ${{ steps.get-pr.outputs.pr_found }}
+          PR_JSON: ${{ steps.get-pr.outputs.pr }}
         run: |
-          echo "version_env_changed=${{ steps.changed-version-env.outputs.any_changed }}"
-          echo "labels=${{ toJSON(github.event.pull_request.labels.*.name) }}"
-          echo "labels_contain_mnr=${{ contains( github.event.pull_request.labels.*.name, 'merge-and-release-extension-compatible') }}"
+          if [ "$PR_FOUND" != "true" ]; then
+            echo "No PR found for this push"
+            echo "labelsFound=false" >> $GITHUB_OUTPUT
+            echo "requestPattern=" >> $GITHUB_OUTPUT
+            echo "validRequest=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
-  # Increment the APP and CHART versions based on commit message starting with update-versions 
+          # Extract version labels from PR
+          VERSION_LABELS=$(echo "$PR_JSON" | jq -r '.labels[].name' | grep '^version:' || true)
+          LABEL_COUNT=$(echo "$VERSION_LABELS" | grep -c '^version:' || true)
+
+          if [ "$LABEL_COUNT" -eq 0 ]; then
+            echo "No version labels found"
+            echo "labelsFound=false" >> $GITHUB_OUTPUT
+            echo "requestPattern=" >> $GITHUB_OUTPUT
+            echo "validRequest=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "$LABEL_COUNT" -gt 1 ]; then
+            echo "::error::Multiple version labels found: $VERSION_LABELS. Apply exactly one version label."
+            exit 1
+          fi
+
+          LABEL=$(echo "$VERSION_LABELS" | head -1)
+          echo "Found version label: $LABEL"
+
+          case "$LABEL" in
+            "version:no-change")
+              requestPattern=""
+              validRequest=false
+              ;;
+            "version:app-patch")
+              requestPattern="app:patch chart:patch"
+              validRequest=true
+              ;;
+            "version:app-minor")
+              requestPattern="app:minor chart:patch"
+              validRequest=true
+              ;;
+            "version:app-major")
+              requestPattern="app:major chart:patch"
+              validRequest=true
+              ;;
+            "version:chart-only")
+              requestPattern="chart:patch"
+              validRequest=true
+              ;;
+            *)
+              echo "::error::Unknown version label: $LABEL"
+              exit 1
+              ;;
+          esac
+
+          echo "labelsFound=true" >> $GITHUB_OUTPUT
+          echo "requestPattern=$requestPattern" >> $GITHUB_OUTPUT
+          echo "validRequest=$validRequest" >> $GITHUB_OUTPUT
+
+  # Increment the APP and CHART versions based on commit message starting with update-versions
   parseVersionChangeRequest:
     name: Parse version changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
+    if: github.event_name == 'push'
     outputs:
       requestPattern: ${{ steps.validate-commit.outputs.requestPattern }}
       validRequest: ${{ steps.validate-commit.outputs.validRequest }}
@@ -126,13 +158,51 @@ jobs:
           echo "validRequest=${validRequest}" >> $GITHUB_OUTPUT
         env:
           EVENTNAME: ${{ github.event_name }}
+
+  # Pick label-based outputs if available, otherwise fall back to commit message parsing
+  resolveVersionRequest:
+    name: Resolve version request
+    runs-on: ubuntu-slim
+    needs: [parseVersionLabels, parseVersionChangeRequest] # implicitly enforces event_name == 'push'
+    outputs:
+      requestPattern: ${{ steps.resolve.outputs.requestPattern }}
+      validRequest: ${{ steps.resolve.outputs.validRequest }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if version.env already has changes
+        id: changed-version-env
+        uses: tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
+        with:
+          files: 'version.env'
+
+      - name: Resolve version source
+        id: resolve
+        run: |
+          if [ "${{ steps.changed-version-env.outputs.any_changed }}" = "true" ]; then
+            echo "::error::version.env was manually updated in the PR — skipping automated bump"
+            echo "requestPattern=" >> $GITHUB_OUTPUT
+            echo "validRequest=false" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.parseVersionLabels.outputs.labelsFound }}" = "true" ]; then
+            echo "Using version labels"
+            echo "requestPattern=${{ needs.parseVersionLabels.outputs.requestPattern }}" >> $GITHUB_OUTPUT
+            echo "validRequest=${{ needs.parseVersionLabels.outputs.validRequest }}" >> $GITHUB_OUTPUT
+          else
+            echo "Falling back to commit message parsing"
+            echo "requestPattern=${{ needs.parseVersionChangeRequest.outputs.requestPattern }}" >> $GITHUB_OUTPUT
+            echo "validRequest=${{ needs.parseVersionChangeRequest.outputs.validRequest }}" >> $GITHUB_OUTPUT
+          fi
+
   changeVersions:
     name: Update versions
-    runs-on: ubuntu-latest
-    needs: parseVersionChangeRequest
+    runs-on: ubuntu-slim
+    needs: resolveVersionRequest
     if: |
       (github.event_name == 'push' &&
-        needs.parseVersionChangeRequest.outputs.validRequest == 'true')
+        needs.resolveVersionRequest.outputs.validRequest == 'true')
     steps:
       # Checkout as github-actions for normal workflow
       - uses: actions/checkout@v3
@@ -150,6 +220,8 @@ jobs:
         run: git pull
       - name: Calculate desired version changes
         id: get-new-versions
+        env:
+          REQUEST_PATTERN: ${{needs.resolveVersionRequest.outputs.requestPattern}}
         run: |
           . version.env
           # Check both chart and app for version changes and bump accordingly 
@@ -175,8 +247,8 @@ jobs:
             if [[ $version =~ $rNumRegex ]]; then
               echo "Version fits pattern r123 where 123 are any digits"
               # If the versioning is r123 format, ignore patch/major/minor as it can only be a +1
-              echo "outputs: ${outputs}"
-              if [[ "${outputs}" == *"${i}:"* ]]; then
+              echo "REQUEST_PATTERN: ${REQUEST_PATTERN}"
+              if [[ "${REQUEST_PATTERN}" == *"${i}:"* ]]; then
                 newVers="${version:1}"
                 ((newVers+=1))
                 printf -v version 'r%d' "$((newVers))"
@@ -185,12 +257,12 @@ jobs:
             elif [[ $version =~ $semRegex ]]; then
               echo "Version uses semantic versioning"
               IFS=. read -r major minor patch <<<"$version"
-              if [[ "${outputs}" == *"${i}:patch"* ]]; then
+              if [[ "${REQUEST_PATTERN}" == *"${i}:patch"* ]]; then
                 ((patch+=1))
-              elif [[ "${outputs}" == *"${i}:minor"* ]]; then
+              elif [[ "${REQUEST_PATTERN}" == *"${i}:minor"* ]]; then
                 ((minor+=1))
                 patch="0"
-              elif [[ "${outputs}" == *"${i}:major"* ]]; then
+              elif [[ "${REQUEST_PATTERN}" == *"${i}:major"* ]]; then
                 ((major+=1))
                 patch="0"
                 minor="0"
@@ -209,8 +281,6 @@ jobs:
               echo "newAppversion=${version}" >> $GITHUB_OUTPUT
             fi
           done
-        env:
-          outputs: ${{needs.parseVersionChangeRequest.outputs.requestPattern}}
       - name: Update Versions in version.env
         id: update-versions
         run: |
