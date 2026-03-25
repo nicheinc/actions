@@ -168,6 +168,11 @@ jobs:
       requestPattern: ${{ steps.resolve.outputs.requestPattern }}
       validRequest: ${{ steps.resolve.outputs.validRequest }}
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Check if version.env already has changes
         id: changed-version-env
         uses: tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
