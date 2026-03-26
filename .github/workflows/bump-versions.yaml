@@ -32,7 +32,6 @@ jobs:
   parseVersionLabels:
     name: Parse version bump labels
     runs-on: ubuntu-slim
-    if: github.event_name == 'push'
     outputs:
       labelsFound: ${{ steps.parse-labels.outputs.labelsFound }}
       requestPattern: ${{ steps.parse-labels.outputs.requestPattern }}
@@ -111,7 +110,6 @@ jobs:
   parseVersionChangeRequest:
     name: Parse version changes
     runs-on: ubuntu-slim
-    if: github.event_name == 'push'
     outputs:
       requestPattern: ${{ steps.validate-commit.outputs.requestPattern }}
       validRequest: ${{ steps.validate-commit.outputs.validRequest }}
@@ -163,7 +161,7 @@ jobs:
   resolveVersionRequest:
     name: Resolve version request
     runs-on: ubuntu-slim
-    needs: [parseVersionLabels, parseVersionChangeRequest] # implicitly enforces event_name == 'push'
+    needs: [parseVersionLabels, parseVersionChangeRequest]
     outputs:
       requestPattern: ${{ steps.resolve.outputs.requestPattern }}
       validRequest: ${{ steps.resolve.outputs.validRequest }}
@@ -291,8 +289,6 @@ jobs:
           CHARTVERSION: ${{ steps.get-new-versions.outputs.newChartversion }}
       - name: Push Version File Updates
         id: push-updated-versions
-        if: |
-          github.event_name == 'push'
         run: |
           . version.env
           if ! git diff --quiet; then
