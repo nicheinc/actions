@@ -35,7 +35,6 @@ on:
           ${{
             jobs.parseVersionLabels.outputs.updateVersions == 'true'
             && github.event_name == 'push'
-            && jobs.checkForManualUpdate.outputs.alreadyUpdated != 'true'
           }}
     secrets:
       PUSH_CHARTS_TOKEN:
@@ -46,7 +45,6 @@ env:
   ACTIONS_CHECKOUT: &actions-checkout actions/checkout@v6
   # Third-party actions
   ACTIONS_GET_CURRENT_PR: &actions-get-current-pr 8BitJonny/gh-get-current-pr@4056877062a1f3b624d5d4c2bedefa9cf51435c9 # v4.0.0
-  ACTIONS_CHANGED_FILES: &actions-changed-files tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
 
 jobs:
   # Parse PR labels to determine version bump type
@@ -129,42 +127,13 @@ jobs:
           echo "appChange=$appChange" >> $GITHUB_OUTPUT
           echo "chartChange=$chartChange" >> $GITHUB_OUTPUT
 
-  # Skip the automated bump when the merged PR already edited version.env by
-  # hand, so we don't stack a second change on top of it. Only runs when a
-  # bump would otherwise happen.
-  checkForManualUpdate:
-    name: Check for preexisting version.env updates
+  updateVersions:
+    name: Update version.env
     runs-on: ubuntu-slim
     needs: parseVersionLabels
     if: |
       (github.event_name == 'push' &&
         needs.parseVersionLabels.outputs.updateVersions == 'true')
-    outputs:
-      alreadyUpdated: ${{ steps.changed-version-env.outputs.any_changed }}
-    steps:
-      - uses: *actions-checkout
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check if version.env was already updated
-        id: changed-version-env
-        uses: *actions-changed-files
-        with:
-          files: 'version.env'
-
-      - name: Warn on manual version.env update
-        if: steps.changed-version-env.outputs.any_changed == 'true'
-        run: echo "::error::version.env was manually updated in the PR, skipping automated bump"
-
-  updateVersions:
-    name: Update version.env
-    runs-on: ubuntu-slim
-    needs: [parseVersionLabels, checkForManualUpdate]
-    if: |
-      (github.event_name == 'push' &&
-        needs.parseVersionLabels.outputs.updateVersions == 'true' &&
-        needs.checkForManualUpdate.outputs.alreadyUpdated != 'true')
     steps:
       # Checkout as github-actions for normal workflow
       - uses: *actions-checkout
