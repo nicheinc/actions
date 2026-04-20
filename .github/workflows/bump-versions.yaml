@@ -69,7 +69,7 @@ jobs:
       - name: Wait for commit→PR index to catch up
         if: steps.get-pr-1.outputs.pr_found != 'true'
         shell: bash
-        run: sleep 15
+        run: sleep 30
 
       - name: Get PR for this event (attempt 2)
         if: steps.get-pr-1.outputs.pr_found != 'true'
