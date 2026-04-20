@@ -59,9 +59,44 @@ jobs:
       appChange: ${{ steps.parse-labels.outputs.appChange }}
       chartChange: ${{ steps.parse-labels.outputs.chartChange }}
     steps:
-      - name: Get PR for this event
+      # GitHub's commit→PR index is eventually consistent; a push-triggered
+      # workflow can race the index and return pr_found=false for a commit
+      # whose PR has clearly been merged. Retry once after a short wait.
+      - name: Get PR for this event (attempt 1)
         uses: *actions-get-current-pr
+        id: get-pr-1
+
+      - name: Wait for commit→PR index to catch up
+        if: steps.get-pr-1.outputs.pr_found != 'true'
+        shell: bash
+        run: sleep 30
+
+      - name: Get PR for this event (attempt 2)
+        if: steps.get-pr-1.outputs.pr_found != 'true'
+        uses: *actions-get-current-pr
+        id: get-pr-2
+
+      - name: Resolve PR result
         id: get-pr
+        env:
+          PR1_FOUND: ${{ steps.get-pr-1.outputs.pr_found }}
+          PR1: ${{ steps.get-pr-1.outputs.pr }}
+          PR2_FOUND: ${{ steps.get-pr-2.outputs.pr_found }}
+          PR2: ${{ steps.get-pr-2.outputs.pr }}
+        run: |
+          if [ "$PR1_FOUND" = "true" ]; then
+            found=true; pr="$PR1"
+          elif [ "$PR2_FOUND" = "true" ]; then
+            found=true; pr="$PR2"
+          else
+            found=false; pr=""
+          fi
+          echo "pr_found=$found" >> $GITHUB_OUTPUT
+
+          random_delimiter="$(openssl rand -base64 12)"
+          echo "pr<<${random_delimiter}" >> $GITHUB_OUTPUT
+          echo "${pr}" >> $GITHUB_OUTPUT
+          echo "${random_delimiter}" >> $GITHUB_OUTPUT
 
       - name: Parse version labels from PR
         id: parse-labels
