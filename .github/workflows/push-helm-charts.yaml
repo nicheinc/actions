@@ -251,7 +251,7 @@ jobs:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
-            channel: "C2C5JV162"
+            channel: "C3PRNS8DR"
             text: "GitHub has built `${{ github.event.repository.name }}:helm-chart-${{ inputs.chartversion }}` for <${{ steps.create-helm-prerelease.outputs.html_url }}|release>. :shipitparrot:"
 
       - name: Post Helm Chart Release to Slack
@@ -264,5 +264,5 @@ jobs:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
-            channel: "C2C5JV162"
+            channel: "C3PRNS8DR"
             text: "GitHub has promoted `${{ github.event.repository.name }}:${{ github.ref_name }}` to production. :shipitparrot:"
