@@ -218,7 +218,7 @@ jobs:
       # Cut a prerelease for the helm chart if it was a push
       - name: Create Prerelease for Helm Charts
         id: create-helm-prerelease
-        uses: ncipollo/release-action@3d2de22e3d0beab188d8129c27f103d8e91bf13a
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         if: |
           github.event_name == 'push' &&
           inputs.chartchange == 'true'
