@@ -246,25 +246,23 @@ jobs:
           github.event_name == 'push' && 
           inputs.chartchange == 'true' &&
           !inputs.no-slack
-        uses: slackapi/slack-github-action@v1.17.0
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
         with:
-          channel-id: 'C2C5JV162'
-          slack-message: |
-            GitHub has built `${{ github.event.repository.name }}:helm-chart-${{ inputs.chartversion }}` 
-            for <${{ steps.create-helm-prerelease.outputs.html_url }}|release>. :shipitparrot:
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: "C2C5JV162"
+            text: "GitHub has built `${{ github.event.repository.name }}:helm-chart-${{ inputs.chartversion }}` for <${{ steps.create-helm-prerelease.outputs.html_url }}|release>. :shipitparrot:"
 
       - name: Post Helm Chart Release to Slack
         if: |
           github.event_name == 'release' &&
           startsWith(github.ref_name, 'helm-chart') &&
           !inputs.no-slack
-        uses: slackapi/slack-github-action@v1.17.0
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
         with:
-          channel-id: 'C2C5JV162'
-          slack-message: |
-            GitHub has promoted `${{ github.event.repository.name }}:${{ github.ref_name }}` 
-            to production. :shipitparrot:
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: "C2C5JV162"
+            text: "GitHub has promoted `${{ github.event.repository.name }}:${{ github.ref_name }}` to production. :shipitparrot:"
