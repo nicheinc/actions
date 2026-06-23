@@ -207,7 +207,7 @@ jobs:
           done
 
       - name: Get PR Metadata
-        uses: nicheinc/get-pr-metadata@DELTA-3834-add-pr-labels-output
+        uses: nicheinc/get-pr-metadata@v1
         id: get-pr
         if: |
           github.event_name == 'push' &&
