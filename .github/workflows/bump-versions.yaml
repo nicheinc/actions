@@ -42,9 +42,9 @@ on:
 
 env:
   # First-party GitHub actions
-  ACTIONS_CHECKOUT: &actions-checkout actions/checkout@v6
-  # Third-party actions
-  ACTIONS_GET_CURRENT_PR: &actions-get-current-pr 8BitJonny/gh-get-current-pr@4056877062a1f3b624d5d4c2bedefa9cf51435c9 # v4.0.0
+  ACTIONS_CHECKOUT: &actions-checkout actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+  # Niche composite actions
+  ACTIONS_GET_CURRENT_PR: &actions-get-current-pr nicheinc/get-pr-metadata@v1
 
 jobs:
   # Parse PR labels to determine version bump type
@@ -65,6 +65,8 @@ jobs:
       - name: Get PR for this event (attempt 1)
         uses: *actions-get-current-pr
         id: get-pr-1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for commit→PR index to catch up
         if: steps.get-pr-1.outputs.pr_found != 'true'
@@ -75,34 +77,36 @@ jobs:
         if: steps.get-pr-1.outputs.pr_found != 'true'
         uses: *actions-get-current-pr
         id: get-pr-2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve PR result
         id: get-pr
         env:
           PR1_FOUND: ${{ steps.get-pr-1.outputs.pr_found }}
-          PR1: ${{ steps.get-pr-1.outputs.pr }}
+          PR1_LABELS: ${{ steps.get-pr-1.outputs.pr_labels }}
           PR2_FOUND: ${{ steps.get-pr-2.outputs.pr_found }}
-          PR2: ${{ steps.get-pr-2.outputs.pr }}
+          PR2_LABELS: ${{ steps.get-pr-2.outputs.pr_labels }}
         run: |
           if [ "$PR1_FOUND" = "true" ]; then
-            found=true; pr="$PR1"
+            found=true; labels="$PR1_LABELS"
           elif [ "$PR2_FOUND" = "true" ]; then
-            found=true; pr="$PR2"
+            found=true; labels="$PR2_LABELS"
           else
-            found=false; pr=""
+            found=false; labels=""
           fi
           echo "pr_found=$found" >> $GITHUB_OUTPUT
 
           random_delimiter="$(openssl rand -base64 12)"
-          echo "pr<<${random_delimiter}" >> $GITHUB_OUTPUT
-          echo "${pr}" >> $GITHUB_OUTPUT
+          echo "pr_labels<<${random_delimiter}" >> $GITHUB_OUTPUT
+          echo "${labels}" >> $GITHUB_OUTPUT
           echo "${random_delimiter}" >> $GITHUB_OUTPUT
 
       - name: Parse version labels from PR
         id: parse-labels
         env:
           PR_FOUND: ${{ steps.get-pr.outputs.pr_found }}
-          PR_JSON: ${{ steps.get-pr.outputs.pr }}
+          PR_LABELS: ${{ steps.get-pr.outputs.pr_labels }}
         run: |
           if [ "$PR_FOUND" != "true" ]; then
             echo "No PR found for this event"
@@ -111,7 +115,7 @@ jobs:
           fi
 
           # Extract version labels from PR
-          VERSION_LABELS=$(echo "$PR_JSON" | jq -r '.labels[].name' | grep '^version:' || true)
+          VERSION_LABELS=$(echo "$PR_LABELS" | grep '^version:' || true)
           LABEL_COUNT=$(echo "$VERSION_LABELS" | grep -c '^version:' || true)
 
           if [ "$LABEL_COUNT" -eq 0 ]; then
